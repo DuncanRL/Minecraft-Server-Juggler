@@ -1,0 +1,19 @@
+{
+    "servers": [
+        "0",
+        "1",
+        "2"
+    ],
+    "arguments": "java -XX:+CMSIncrementalPacing -XX:ParallelGCThreads=2 -XX:+AggressiveOpts -Xms1G -Xmx4G -Dfml.readTimeout=60 -jar fabric-server-launch.jar --nogui",
+    "interval": 30,
+    "advancements": [
+        "Acquire Hardware",
+        "Hot Stuff",
+        "We Need to Go Deeper",
+        "A Terrible Fortress",
+        "Into Fire",
+        "Eye Spy",
+        "The End?",
+        "Free the End"
+    ]
+}
