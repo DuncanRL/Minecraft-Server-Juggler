@@ -221,12 +221,17 @@ class Server:
         self.startTime = 0
         self.advancements = {}
 
+    def run_command(self, command):
+        self.process.stdin.write(command+"\n")
+        self.process.stdin.flush()
+
 def event_playerJoined(server, line):
     playerName = extract.JOINED(line)
 
     if server.server.players == 0:
-        server.server.process.stdin.write(f'op {playerName}\n')
-        server.server.process.stdin.flush()
+        server.server.run_command(f'op {playerName}')
+    
+    server.server.run_command(f'whitelist add {playerName}')
 
     server.server.players += 1
     server.server.playerList[playerName] = True
@@ -253,6 +258,11 @@ def event_serverProgress(server):
         server.state += 1
         #LOG
         server.write(stateMessages[server.state])
+
+        if server.state == 3:
+            server.server.run_command("whitelist off")
+        elif server.state == 4:
+            server.server.run_command("whitelist on")
 
 def event_serverAdvancement(server, line):
     advancement = extract.ADVANCEMENT(line)
