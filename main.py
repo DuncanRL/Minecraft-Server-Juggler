@@ -205,7 +205,8 @@ class ServerFolder:
         '''
         time = datetime.now().strftime("%H:%M:%S")
         msg = f'[{time}] [Server {self.folder}] {string}\n'
-        sendToDiscord(msg)
+        msg2 = f'`[Server {self.folder}]` {string}\n'
+        sendToDiscord(msg2)
         self.logs[0].write(msg)
         self.logs[1].write(msg)
         self.logs[1].flush()
