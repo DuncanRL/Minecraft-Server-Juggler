@@ -1,5 +1,7 @@
+(Exactly like mini's except automatically gives op to whoever joins first.)
+
 Minecraft Server Juggler for minecraft co-op speedrunning seed finding.
-Copyright (C) 2020  MiniaczQ
+Copyright (C) 2020  MiniaczQ and DuncanRuns
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
