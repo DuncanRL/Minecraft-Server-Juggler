@@ -172,7 +172,10 @@ class ServerFolder:
         dst = join(mwd, self.folder)
         chdir(dst)
         for file in ServerFolder.syncFiles:
-            remove(file)
+            try:
+                remove(file)
+            except:
+                pass
             copyfile(join(src, file), join(dst, file))
         chdir(mwd)
 
