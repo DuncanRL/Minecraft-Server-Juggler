@@ -105,11 +105,6 @@ stateMessages = [None,
 def createFolders():
     flag = False
     try:
-        mkdir('servers')
-        flag = True
-    except:
-        pass
-    try:
         mkdir('logs')
         flag = True
     except:
@@ -144,7 +139,7 @@ class ServerFolder:
         self.folder = folder
     
     def start(self):
-        self.server = Server(Popen(settings['arguments'], cwd=self.folder, stdout=PIPE, text=True))
+        self.server = Server(Popen(settings['arguments'], cwd=self.folder, stdout=PIPE, text=True, stdin=PIPE))
         self.state = 0        
 
     def kill(self):
@@ -156,6 +151,10 @@ class ServerFolder:
         Attempts to delete the world file.
         '''
         rmtree(join(getcwd(), self.folder, 'world'), ignore_errors=True)
+        try:
+            remove(join(getcwd(), self.folder, 'ops.json'))
+        except:
+            pass
     
     def read(self):
         '''
@@ -217,10 +216,16 @@ class Server:
         self.advancements = {}
 
 def event_playerJoined(server, line):
+    playerName = extract.JOINED(line)
+
+    if server.server.players == 0:
+        server.server.process.stdin.write(f'op {playerName}\n')
+        server.server.process.stdin.flush()
+
     server.server.players += 1
-    server.server.playerList[extract.JOINED(line)] = True
+    server.server.playerList[playerName] = True
     #LOG
-    server.write(f'Player {extract.JOINED(line)} joined.')
+    server.write(f'Player {playerName} joined.')
 
 def event_playerLeft(server):
     server.server.players -= 1
