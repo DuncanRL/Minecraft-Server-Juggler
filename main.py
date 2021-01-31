@@ -176,7 +176,10 @@ class ServerFolder:
                 remove(file)
             except:
                 pass
-            copyfile(join(src, file), join(dst, file))
+            try:
+                copyfile(join(src, file), join(dst, file))
+            except:
+                pass
         chdir(mwd)
 
     def write(self, string):
