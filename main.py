@@ -27,6 +27,19 @@ from signal import signal, SIGTERM, SIGINT
 from os.path import join
 from enum import Enum
 from sys import stdout
+from discord_webhook import DiscordWebhook
+
+try:
+    webhookfile = open("webhook","r")
+    webhookurl = webhookfile.read().rstrip()
+    webhookfile.close()
+except:
+    webhookurl = None
+
+def sendToDiscord(message):
+    global webhookurl
+    if webhookurl != None:
+        DiscordWebhook(webhookurl,content=message).execute()
 
 class PipeQueuer(Thread):
     '''
@@ -192,6 +205,7 @@ class ServerFolder:
         '''
         time = datetime.now().strftime("%H:%M:%S")
         msg = f'[{time}] [Server {self.folder}] {string}\n'
+        sendToDiscord(msg)
         self.logs[0].write(msg)
         self.logs[1].write(msg)
         self.logs[1].flush()
