@@ -382,7 +382,9 @@ states = [juggle,
 cr = '''Minecraft Server Juggler  Copyright (C) 2020  MiniaczQ
 This program comes with ABSOLUTELY NO WARRANTY.
 This is free software, and you are welcome to redistribute it
-under certain conditions.'''
+under certain conditions.
+
+'''
 
 # Application loop
 if __name__ == '__main__':
