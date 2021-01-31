@@ -45,7 +45,7 @@ class PipeQueuer(Thread):
 serverListeners = [compile(r'\[..:..:..\] \[Server thread/INFO\]: Starting minecraft server').search,
                    compile(r'\[..:..:..\] \[Server thread/INFO\]: Preparing start region for dimension minecraft:overworld').search,
                    compile(r'\[..:..:..\] \[Server thread/INFO\]: Done').search,
-                   compile(r'\[..:..:..\] \[Server thread/INFO\]: Automatic saving is now disabled').search, #ThisIsThePrompt
+                   compile(r'\[..:..:..\] \[Server thread/INFO\]: \[.*?: Automatic saving is now disabled\]').search, #ThisIsThePrompt
                    compile(r'\[..:..:..\] \[Server thread/INFO\]: \[.*?: Set the time to 0\]').search,
                    compile(r'\[..:..:..\] \[Server thread/INFO\]: Stopping server').search]
 
