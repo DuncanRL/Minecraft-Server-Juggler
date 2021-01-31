@@ -45,7 +45,7 @@ class PipeQueuer(Thread):
 serverListeners = [compile(r'\[..:..:..\] \[Server thread/INFO\]: Starting minecraft server').search,
                    compile(r'\[..:..:..\] \[Server thread/INFO\]: Preparing start region for dimension minecraft:overworld').search,
                    compile(r'\[..:..:..\] \[Server thread/INFO\]: Done').search,
-                   compile(r'\[..:..:..\] \[Server thread/INFO\]: <.*?> .*?').search, #ThisIsThePrompt
+                   compile(r'\[..:..:..\] \[Server thread/INFO\]: Automatic saving is now disabled').search, #ThisIsThePrompt
                    compile(r'\[..:..:..\] \[Server thread/INFO\]: \[.*?: Set the time to 0\]').search,
                    compile(r'\[..:..:..\] \[Server thread/INFO\]: Stopping server').search]
 
@@ -155,6 +155,10 @@ class ServerFolder:
             remove(join(getcwd(), self.folder, 'ops.json'))
         except:
             pass
+        try:
+            remove(join(getcwd(), self.folder, 'whitelist.json'))
+        except:
+            pass
     
     def read(self):
         '''
@@ -261,7 +265,7 @@ def event_serverProgress(server):
 
         if server.state == 3:
             server.server.run_command("whitelist off")
-        elif server.state == 4:
+        elif server.state == 5:
             server.server.run_command("whitelist on")
 
 def event_serverAdvancement(server, line):
