@@ -27,45 +27,47 @@ from signal import signal, SIGTERM, SIGINT
 from os.path import join
 from enum import Enum
 from sys import stdout
-from discord_webhook import DiscordWebhook
+from discordbot_core import discordbot, discordbot_start,updates
+from asyncio import create_task
 
-try:
-    webhookfile = open("webhook","r")
-    webhookurl = webhookfile.read().rstrip()
-    webhookfile.close()
-except:
-    webhookurl = None
-
-def sendToDiscord(message):
-    global webhookurl
-    if webhookurl != None:
-        DiscordWebhook(webhookurl,content=message).execute()
 
 class PipeQueuer(Thread):
     '''
     Runs in a separate thread.
     Reads server logs and leaves them on a queue.
     '''
+
     def __init__(self, pipe, queue):
         Thread.__init__(self)
         self.pipe = pipe
         self.queue = queue
-    
+
     def run(self):
         for line in iter(self.pipe.readline, ''):
             self.queue.put(line)
 
+
 serverListeners = [compile(r'\[..:..:..\] \[Server thread/INFO\]: Starting minecraft server').search,
-                   compile(r'\[..:..:..\] \[Server thread/INFO\]: Preparing start region for dimension minecraft:overworld').search,
-                   compile(r'\[..:..:..\] \[Server thread/INFO\]: Done').search,
-                   compile(r'\[..:..:..\] \[Server thread/INFO\]: \[.*?: Automatic saving is now disabled\]').search, #ThisIsThePrompt
-                   compile(r'\[..:..:..\] \[Server thread/INFO\]: \[.*?: Set the time to 0\]').search,
+                   compile(
+                       r'\[..:..:..\] \[Server thread/INFO\]: Preparing start region for dimension minecraft:overworld').search,
+                   compile(
+                       r'\[..:..:..\] \[Server thread/INFO\]: Done').search,
+                   # ThisIsThePrompt
+                   compile(
+                       r'\[..:..:..\] \[Server thread/INFO\]: \[.*?: Automatic saving is now disabled\]').search,
+                   compile(
+                       r'\[..:..:..\] \[Server thread/INFO\]: \[.*?: Set the time to 0\]').search,
                    compile(r'\[..:..:..\] \[Server thread/INFO\]: Stopping server').search]
 
+
 class playerListeners:
-    JOINED = compile(r'\[..:..:..\] \[Server thread/INFO\]: .*? joined the game').search
-    LEFT = compile(r'\[..:..:..\] \[Server thread/INFO\]: .*? left the game').search
-    ADVANCEMENT = compile(r'\[..:..:..\] \[Server thread/INFO\]: .*? has made the advancement \[.*?\]').search
+    JOINED = compile(
+        r'\[..:..:..\] \[Server thread/INFO\]: .*? joined the game').search
+    LEFT = compile(
+        r'\[..:..:..\] \[Server thread/INFO\]: .*? left the game').search
+    ADVANCEMENT = compile(
+        r'\[..:..:..\] \[Server thread/INFO\]: .*? has made the advancement \[.*?\]').search
+
 
 class extract:
     '''
@@ -87,17 +89,19 @@ class extract:
     def JOINED(string):
         return string[33:-17]
 
+
 class Time:
     '''
     Specialized class for simple time management.
     '''
+
     def __init__(self, time):
         self.time = time
 
     @staticmethod
     def fromString(string):
         return Time(int(string[1:3]) * 3600 + int(string[4:6]) * 60 + int(string[7:9]))
-    
+
     @staticmethod
     def delta(a, b):
         value = b.time - a.time
@@ -108,12 +112,14 @@ class Time:
     def toString(self):
         return f"[{self.time//3600:02}:{self.time%3600//60:02}:{self.time%60:02}]"
 
+
 stateMessages = [None,
                  'Server starting.',
                  'World generation started.',
                  'World generation finished.',
                  'Server prioritized.',
                  'Speedrun started.']
+
 
 def createFolders():
     flag = False
@@ -123,6 +129,7 @@ def createFolders():
     except:
         pass
     return flag
+
 
 def loadSettings():
     '''
@@ -134,26 +141,29 @@ def loadSettings():
     settings['arguments'] = split(settings['arguments'])
     return settings
 
+
 def loadLogs():
     return (open(join('logs', f'{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.txt'), 'w'), stdout)
+
 
 class ServerFolder:
     '''
     Instance of a server folder.
     '''
     syncFiles = ['whitelist.json',
-                    'ops.json',
-                    'banned-ips.json',
-                    'banned-players.json']
-    
+                 'ops.json',
+                 'banned-ips.json',
+                 'banned-players.json']
+
     def __init__(self, settings, logs, folder):
         self.settings = settings
         self.logs = logs
         self.folder = folder
-    
+
     def start(self):
-        self.server = Server(Popen(settings['arguments'], cwd=self.folder, stdout=PIPE, text=True, stdin=PIPE))
-        self.state = 0        
+        self.server = Server(Popen(
+            settings['arguments'], cwd=self.folder, stdout=PIPE, text=True, stdin=PIPE))
+        self.state = 0
 
     def kill(self):
         self.server.process.kill()
@@ -172,14 +182,14 @@ class ServerFolder:
             remove(join(getcwd(), self.folder, 'whitelist.json'))
         except:
             pass
-    
+
     def read(self):
         '''
         Generator, returns all unread server logs.
         '''
         while not self.server.queue.empty():
             yield self.server.queue.get()
-    
+
     def sync(self, folder):
         '''
         Copies specific files from provided template folder.
@@ -205,29 +215,30 @@ class ServerFolder:
         '''
         time = datetime.now().strftime("%H:%M:%S")
         msg = f'[{time}] [Server {self.folder}] {string}\n'
-        msg2 = f'`[Server {self.folder}]` {string}\n'
-        sendToDiscord(msg2)
         self.logs[0].write(msg)
         self.logs[1].write(msg)
         self.logs[1].flush()
 
+
 def initiateServers(settings, logs, inactiveServers):
-        '''
-        Synchronizes and initiates all servers.
-        '''
-        templateFolder = None
-        for folder in settings['servers']:
-            server = ServerFolder(settings, logs, folder)
-            inactiveServers.append(server)
-            if templateFolder:
-                server.sync(templateFolder)
-            else:
-                templateFolder = folder
+    '''
+    Synchronizes and initiates all servers.
+    '''
+    templateFolder = None
+    for folder in settings['servers']:
+        server = ServerFolder(settings, logs, folder)
+        inactiveServers.append(server)
+        if templateFolder:
+            server.sync(templateFolder)
+        else:
+            templateFolder = folder
+
 
 class Server:
     '''
     Instance of one server execution.
     '''
+
     def __init__(self, process):
         self.process = process
         self.queue = Queue()
@@ -244,53 +255,68 @@ class Server:
         self.process.stdin.write(command+"\n")
         self.process.stdin.flush()
 
+
 def event_playerJoined(server, line):
     playerName = extract.JOINED(line)
 
     if server.server.players == 0:
         server.server.run_command(f'op {playerName}')
-    
+
     server.server.run_command(f'whitelist add {playerName}')
 
     server.server.players += 1
     server.server.playerList[playerName] = True
-    #LOG
+    # LOG
     server.write(f'Player {playerName} joined.')
+
 
 def event_playerLeft(server):
     server.server.players -= 1
-    #LOG
+    # LOG
     server.write('Player left.')
     if server.server.players == 0:
         server.kill()
-        #LOG
+        # LOG
         server.write('All players left. Killing server.')
+        updates.append([server.folder,"S"])
         return True
     return False
 
+
 def event_serverStop(server):
     server.kill()
-    #LOG
+    # LOG
     server.write('Server killed from outside.')
+    updates.append([server.folder,"S"])
+
 
 def event_serverProgress(server):
-        server.state += 1
-        #LOG
-        server.write(stateMessages[server.state])
+    server.state += 1
+    # LOG
+    server.write(stateMessages[server.state])
 
-        if server.state == 3:
-            server.server.run_command("whitelist off")
-        elif server.state == 5:
-            server.server.run_command("whitelist on")
+    if server.state == 1: 
+        updates.append([server.folder,"L"])
+    elif server.state == 3:
+        server.server.run_command("whitelist off")
+        updates.append([server.folder,"D"])
+    elif server.state == 5:
+        server.server.run_command("whitelist on")
+        updates.append([server.folder,"R"])
+        
+
 
 def event_serverAdvancement(server, line):
     advancement = extract.ADVANCEMENT(line)
     if advancement in server.settings['advancements']:
         if advancement not in server.server.advancements:
-            timeString = Time.toString(Time.delta(server.server.startTime, Time.fromString(extract.TIME(line))))
+            timeString = Time.toString(Time.delta(
+                server.server.startTime, Time.fromString(extract.TIME(line))))
             server.server.advancements[advancement] = timeString
-            #LOG
-            server.write(f'Advancement [{advancement}] achieved at {timeString}.')
+            # LOG
+            server.write(
+                f'Advancement [{advancement}] achieved at {timeString}.')
+
 
 def juggle(state, inactiveServers, activeServers):
     '''
@@ -309,8 +335,9 @@ def juggle(state, inactiveServers, activeServers):
             if server.folder != prioritized.folder:
                 server.kill()
                 toInactiveBuffer.append(i)
-                #LOG
+                # LOG
                 server.write('Priority mode enabled. Killing server.')
+                updates.append([server.folder,"S"])
         processBuffer(activeServers, toInactiveBuffer, inactiveServers)
 
     def attemptStart(inactiveServers, activeServers, lastLaunch):
@@ -342,7 +369,7 @@ def juggle(state, inactiveServers, activeServers):
                     event_serverProgress(server)
                     if server.state > 3:
                         state[0] = 1
-                        return server                        
+                        return server
                 elif playerListeners.JOINED(line):
                     event_playerJoined(server, line)
                 elif playerListeners.LEFT(line):
@@ -350,7 +377,7 @@ def juggle(state, inactiveServers, activeServers):
                         toInactiveBuffer.append(i)
                         break
         processBuffer(activeServers, toInactiveBuffer, inactiveServers)
-    
+
     lastLaunch = 0
     prioritized = None
     while state[0] == 0:
@@ -359,6 +386,7 @@ def juggle(state, inactiveServers, activeServers):
         prioritized = listen(activeServers, inactiveServers, state)
     if state[0] == 1:
         killAllButOne(activeServers, inactiveServers, prioritized)
+
 
 def prioritize(state, inactiveServers, activeServers):
     def listen(activeServers, inactiveServers, state):
@@ -376,7 +404,8 @@ def prioritize(state, inactiveServers, activeServers):
                 event_serverProgress(server)
                 if server.state == 5:
                     state[0] = 2
-                    server.server.startTime = Time.fromString(extract.TIME(line))
+                    server.server.startTime = Time.fromString(
+                        extract.TIME(line))
             elif playerListeners.JOINED(line):
                 event_playerJoined(server, line)
             elif playerListeners.LEFT(line):
@@ -388,6 +417,7 @@ def prioritize(state, inactiveServers, activeServers):
     while state[0] == 1:
         listen(activeServers, inactiveServers, state)
         sleep(1)
+
 
 def speedrun(state, inactiveServers, activeServers):
     def listen(activeServers, inactiveServers, state):
@@ -415,6 +445,7 @@ def speedrun(state, inactiveServers, activeServers):
         listen(activeServers, inactiveServers, state)
         sleep(1)
 
+
 states = [juggle,
           prioritize,
           speedrun]
@@ -425,6 +456,12 @@ This is free software, and you are welcome to redistribute it
 under certain conditions.
 
 '''
+
+
+def mainLoopStuff():
+    while True:
+        states[state[0]](state, inactiveServers, activeServers)
+
 
 # Application loop
 if __name__ == '__main__':
@@ -459,5 +496,8 @@ if __name__ == '__main__':
         initiateServers(settings, logs, inactiveServers)
 
         state = [0]
-        while True:
-            states[state[0]](state, inactiveServers, activeServers)
+
+        mls = Thread(target=mainLoopStuff)
+        mls.start()
+
+        discordbot_start(settings['servers'])
