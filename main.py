@@ -166,7 +166,6 @@ class ServerFolder:
         self.folder = folder
         self.redirector = Redirector(
             self.getPort(), "192.168.2.129", 26003, packet_size=65536)
-        self.r_lock = aio.Lock()
         self.isRedirecting = False
 
     def getPort(self):
@@ -189,14 +188,12 @@ class ServerFolder:
     async def start_redirecting(self):
         self.isRedirecting = True
         await self.redirector.start()
-        await self.r_lock.acquire()
-        await self.r_lock.acquire()
-        await self.r_lock.release()
+        while self.isRedirecting:
+            await aio.sleep(3)
 
     async def stop_redirecting(self):
         self.isRedirecting = False
         await self.redirector.stop()
-        await self.r_lock.release()
 
     def kill(self):
         global activeServers, currentRedirection
