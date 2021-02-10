@@ -180,6 +180,12 @@ class ServerFolder:
             settings['arguments'], cwd=self.folder, stdout=PIPE, text=True, stdin=PIPE))
         self.state = 0
 
+    def start_redirecting_thread(self):
+        aio.start(self.start_redirecting())    
+
+    def stop_redirecting_thread(self):
+        aio.start(self.stop_redirecting())    
+
     async def start_redirecting(self):
         self.isRedirecting = True
         await self.redirector.start()
@@ -196,11 +202,11 @@ class ServerFolder:
         global activeServers, currentRedirection
         if self.isRedirecting:
             with cr_lock:
-                Thread(target=self.stop_redirecting).run()
+                Thread(target=self.stop_redirecting_thread).run()
                 currentRedirection = None
                 for i in activeServers:
                     if i.state == 3:
-                        Thread(target=i.start_redirecting).run()
+                        Thread(target=i.start_redirecting_thread).run()
                         currentRedirection = i
         self.server.process.kill()
         del self.server
@@ -340,7 +346,7 @@ def event_serverProgress(server):
         with cr_lock:
             if currentRedirection is None:
                 currentRedirection = server
-                Thread(target=server.start_redirecting).run()
+                Thread(target=server.start_redirecting_thread).run()
 
     elif server.state == 5:
         server.server.run_command("whitelist on")
