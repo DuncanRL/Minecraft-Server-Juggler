@@ -21,14 +21,19 @@ from re import search, compile
 from shlex import split
 from json import load
 from time import monotonic, sleep
-from threading import Thread
+from threading import Thread, Lock
 from queue import Queue
 from signal import signal, SIGTERM, SIGINT
 from os.path import join
 from enum import Enum
 from sys import stdout
-from discordbot_core import discordbot, discordbot_start,updates
+from discordbot_core import discordbot, discordbot_start, updates
 from asyncio import create_task
+from redirector import Redirector
+import asyncio as aio
+
+currentRedirection = None
+cr_lock = Lock()
 
 
 class PipeQueuer(Thread):
@@ -159,13 +164,44 @@ class ServerFolder:
         self.settings = settings
         self.logs = logs
         self.folder = folder
+        self.redirector = Redirector(
+            self.getPort(), "192.168.2.129", 26003, packet_size=65536)
+        self.r_lock = aio.Lock()
+        self.isRedirecting = False
+
+    def getPort(self):
+        with open(join(self.folder, "server.properties"), "r") as spFile:
+            for i in spFile.readlines():
+                if "server-port" == i[:len("server-port")]:
+                    return int(i.split("=")[1])
 
     def start(self):
         self.server = Server(Popen(
             settings['arguments'], cwd=self.folder, stdout=PIPE, text=True, stdin=PIPE))
         self.state = 0
 
+    async def start_redirecting(self):
+        self.isRedirecting = True
+        await self.redirector.start()
+        await self.r_lock.acquire()
+        await self.r_lock.acquire()
+        await self.r_lock.release()
+
+    async def stop_redirecting(self):
+        self.isRedirecting = False
+        await self.redirector.stop()
+        await self.r_lock.release()
+
     def kill(self):
+        global activeServers, currentRedirection
+        if self.isRedirecting:
+            with cr_lock:
+                Thread(self.stop_redirecting).run()
+                currentRedirection = None
+                for i in activeServers:
+                    if i.state == 3:
+                        Thread(i.start_redirecting).run()
+                        currentRedirection = i
         self.server.process.kill()
         del self.server
 
@@ -278,7 +314,7 @@ def event_playerLeft(server):
         server.kill()
         # LOG
         server.write('All players left. Killing server.')
-        updates.append([server.folder,"S"])
+        updates.append([server.folder, "S"])
         return True
     return False
 
@@ -287,23 +323,28 @@ def event_serverStop(server):
     server.kill()
     # LOG
     server.write('Server killed from outside.')
-    updates.append([server.folder,"S"])
+    updates.append([server.folder, "S"])
 
 
 def event_serverProgress(server):
+    global cr_lock, currentRedirection
     server.state += 1
     # LOG
     server.write(stateMessages[server.state])
 
-    if server.state == 1: 
-        updates.append([server.folder,"L"])
-    elif server.state == 3:
+    if server.state == 1:
         server.server.run_command("whitelist off")
-        updates.append([server.folder,"D"])
+        updates.append([server.folder, "L"])
+    elif server.state == 3:
+        updates.append([server.folder, "D"])
+        with cr_lock:
+            if currentRedirection is None:
+                currentRedirection = server
+                Thread(server.start_redirecting).run()
+
     elif server.state == 5:
         server.server.run_command("whitelist on")
-        updates.append([server.folder,"R"])
-        
+        updates.append([server.folder, "R"])
 
 
 def event_serverAdvancement(server, line):
@@ -337,7 +378,7 @@ def juggle(state, inactiveServers, activeServers):
                 toInactiveBuffer.append(i)
                 # LOG
                 server.write('Priority mode enabled. Killing server.')
-                updates.append([server.folder,"S"])
+                updates.append([server.folder, "S"])
         processBuffer(activeServers, toInactiveBuffer, inactiveServers)
 
     def attemptStart(inactiveServers, activeServers, lastLaunch):
@@ -465,6 +506,10 @@ def mainLoopStuff():
 
 # Application loop
 if __name__ == '__main__':
+
+    def redirectingStuff():
+        pass
+
     if not createFolders():
         stdout.write(cr)
         stdout.flush()
