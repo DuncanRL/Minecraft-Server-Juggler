@@ -196,11 +196,11 @@ class ServerFolder:
         global activeServers, currentRedirection
         if self.isRedirecting:
             with cr_lock:
-                Thread(self.stop_redirecting).run()
+                Thread(target=self.stop_redirecting).run()
                 currentRedirection = None
                 for i in activeServers:
                     if i.state == 3:
-                        Thread(i.start_redirecting).run()
+                        Thread(target=i.start_redirecting).run()
                         currentRedirection = i
         self.server.process.kill()
         del self.server
@@ -340,7 +340,7 @@ def event_serverProgress(server):
         with cr_lock:
             if currentRedirection is None:
                 currentRedirection = server
-                Thread(server.start_redirecting).run()
+                Thread(target=server.start_redirecting).run()
 
     elif server.state == 5:
         server.server.run_command("whitelist on")
