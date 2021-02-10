@@ -181,10 +181,10 @@ class ServerFolder:
         self.state = 0
 
     def start_redirecting_thread(self):
-        aio.start(self.start_redirecting())    
+        aio.run(self.start_redirecting())    
 
     def stop_redirecting_thread(self):
-        aio.start(self.stop_redirecting())    
+        aio.run(self.stop_redirecting())    
 
     async def start_redirecting(self):
         self.isRedirecting = True
